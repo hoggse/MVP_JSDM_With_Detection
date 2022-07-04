@@ -1,0 +1,50 @@
+
+    model {
+    # Priors
+    # Priors for species-specific effects in occupancy and detection
+    for(m in 1:M){  # per species
+      # Params describe community
+      #occupancy - now observed occupancy (note)
+      lpsi[m] ~ dnorm(mu.lpsi, tau.lpsi) # intercept
+      for ( i in 1:novar.occ ) {         # covariate parameters
+        betalpsi[m,i] ~ dnorm(mu.betalpsi[i], tau.betalpsi[i])
+      }
+    }
+    
+    # Hyperpriors
+    # For the model of occupancy
+    mu.lpsi ~ dnorm(0,0.01)       # intercept
+    tau.lpsi <- pow(sd.lpsi, -2)   
+    sd.lpsi ~ dunif(0,10) # as always, bounds of uniform chosen by trial and error
+    for (i in 1:novar.occ) {  # covariate parameters
+      mu.betalpsi[i] ~ dnorm(0,0.01)
+      tau.betalpsi[i] <- pow(sd.betalpsi[i], -2)
+      sd.betalpsi[i] ~ dunif(0, 10)
+    }
+
+    # correlation component
+    Tau[1:M, 1:M] ~ dwish(id[, ], df)
+
+    # Ecological model for true occurrence (process model)
+    
+    for (n in 1:nsite) {  # for each site
+      V[n, 1:M] ~ dmnorm(mu.occ[n, ], Tau[, ])
+      for(m in 1:M){   # for each species
+        #mu.occ[n,m] <- lpsi[m] + inprod(betalpsi[m,], hab[n] )  # no occ vars = 1 , jags annoyling converting mx to  vector
+        mu.occ[n,m] <- lpsi[m] + inprod(betalpsi[m,], hab[n,] )  # no occ vars > 1
+        #mu.occ[n,m] <- lpsi[m]                                  # no occ vars = 0
+        y[n,m] ~ dbern(psi[n,m])  # observed occupancy - Y data supplied as presumed Z
+        psi[n,m] <- step(V[n,m] ) 
+      }
+    }
+    
+    # Derived quantities
+    for(m in 1:M){
+      Nocc.fs[m] <- sum(y[,m]) # Number of occupied sites among the 267
+    }
+    for (n in 1:nsite){
+     Nsite[n] <- sum(y[n,]) # Number of occurring species at each site
+    }
+    index1 <- step(nz-1)  # step(nz-1) = 1 if nz > 0, 0 o/w - allows nz = 0
+ }
+    
